@@ -3,20 +3,34 @@
 import pygame
 import random
 import sys
-from copy import deepcopy
+import pygame.font
 
+# Initialize pygame and set the attributes of screen and pictures
 pygame.init()
-screen_width, screen_height = 800, 600
+screen_width, screen_height = 900, 600
+stage_width, stage_height = 800, 600
 num_pic = 25
 bg_color = (230, 230, 230)
 screen = pygame.display.set_mode([screen_width, screen_height])
 screen.fill(bg_color)
 row_num = 10
 column_num = 10
-pic_width = int(screen_width / column_num)
-pic_height = int(screen_height / row_num)
+pic_width = int(stage_width / column_num)
+pic_height = int(stage_height / row_num)
+score = 0
+text_color =  (30, 30, 30)
+font = pygame.font.SysFont(None, 40)
+
+# Initialize pygame mixer and set the bgm of link game
+pygame.mixer.init()
+game_begin = pygame.mixer.Sound("game_begin.wav")
+hit = pygame.mixer.Sound("hit.wav")
+connection = pygame.mixer.Sound("connection.wav")
+pygame.mixer.music.load("hard_connection.ogg")
+game_end = pygame.mixer.Sound("game_end.wav")
 
 last_pos = (-1, -1)
+
 
 # @m: the number of rows;
 # @n: the number of columns;
@@ -64,13 +78,16 @@ def get_map(m, n):
 			# 将已显示图片的点从列表中删除
 			new_list.remove(pos)
 	return dict(items)
+
 	
 def get_mouse_pos(event, image_dict):
 	"""响应按键"""
 	global last_pos
+	global score
 	if pygame.mouse.get_pressed()[0]:
 		# 单击鼠标左键，获取图片所在点坐标
 		px, py = pygame.mouse.get_pos()
+		hit.play()
 		cur_pos = pixel2pos(px, py)
 		if cur_pos not in image_dict:
 			return
@@ -84,13 +101,24 @@ def get_mouse_pos(event, image_dict):
 			# the second image is (x, y).
 			print("Get the second pos:", cur_pos,
 				  "the first pos is", last_pos)
-			if straight_connect(image_dict, cur_pos, last_pos) or\
-				one_corner_connection(image_dict, cur_pos, last_pos) or\
-				two_corners_connection(image_dict, cur_pos, last_pos):
+			if straight_connect(image_dict, cur_pos, last_pos):
+				score  = score + 100
 				del_image_and_key(image_dict, cur_pos, last_pos)
-				print("Well Done!")
+				connection.play()
+				show_prep_score(score)
+			if one_corner_connection(image_dict, cur_pos, last_pos):
+				score = score + 200
+				del_image_and_key(image_dict, cur_pos, last_pos)
+				pygame.mixer.music.play() 
+				show_prep_score(score)
+			if two_corners_connection(image_dict, cur_pos, last_pos):
+				score = score + 300
+				del_image_and_key(image_dict, cur_pos, last_pos)
+				pygame.mixer.music.play() 
+				show_prep_score(score)				
 			last_pos = (-1, -1)
 
+			
 # Given two points @pos1 and @pos2:
 # 1. If they are not on the same line, return false;
 # 2. Otherwise, if all the points between them (exclusive) are
@@ -208,7 +236,24 @@ def image_wipe(x, y):
 	rect_list=[pixel[0], pixel[1], pic_width, pic_height]
 	pygame.draw.rect(screen, bg_color, rect_list, 0)		
 	pygame.display.flip()		
-			
+	
+	
+# Given score and convert it to a rendered image
+# Then show it on the bg_screen	
+def show_prep_score(score):
+	rounded_score = (round(score, -1))
+	score_str = "{:,}".format(rounded_score)
+	score_image = font.render(score_str, True, text_color, bg_color)
+	# put the score_image on the top right corner
+	screen_rect = screen.get_rect()
+	score_rect = score_image.get_rect()
+	score_rect.right = screen_rect.right - 20
+	score_rect.top = 20
+	# show it on the bg_screen
+	screen.blit(score_image, score_rect)	
+	pygame.display.flip()	
+	
+
 				
 # Given a pixel point(px, py), return the index of image by
 # looking up the pos_to_image_index_dict dict.
@@ -236,10 +281,11 @@ def pixel2pos(px, py):
 	return (px // pic_width, py // pic_height)
 	
 def run_game():
+	game_begin.play()
 	pos_to_image_index_dict = get_map(row_num, column_num)
 	print(len(pos_to_image_index_dict))
 	while True:
-		check_events(pos_to_image_index_dict)
+			check_events(pos_to_image_index_dict)
 		
 run_game()
 
